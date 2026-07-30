@@ -233,6 +233,9 @@ export const getFilesToBePacked = async rootDirectory => {
 		'--json',
 		'--silent',
 		'--ignore-scripts',
+		// Use npm's packlist because it determines the files in published tarballs.
+		// Bypass npm's `devEngines.packageManager` mismatch check for this inspection.
+		'--force',
 		// TODO: Remove this once [npm/cli#7354](https://github.com/npm/cli/issues/7354) is resolved.
 		'--foreground-scripts=false',
 	], {cwd: rootDirectory});

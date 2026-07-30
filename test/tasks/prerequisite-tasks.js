@@ -348,7 +348,8 @@ test.serial('should fail when pnpm ignore-scripts prevents the build script from
 	command: 'pnpm config get ignore-scripts',
 	stdout: 'true',
 }, {
-	command: 'npm pack --dry-run --json --silent --ignore-scripts --foreground-scripts=false',
+	// Keep this expected command in sync with the `devEngines.packageManager` bypass.
+	command: 'npm pack --dry-run --json --silent --ignore-scripts --force --foreground-scripts=false',
 	stdout: '[{"files":[]}]',
 }, {
 	command: 'git config user.name',
@@ -386,7 +387,8 @@ test.serial('should fail when Yarn ignore-scripts prevents the build script from
 	command: 'yarn config get ignore-scripts',
 	stdout: 'true',
 }, {
-	command: 'npm pack --dry-run --json --silent --ignore-scripts --foreground-scripts=false',
+	// Keep this expected command in sync with the `devEngines.packageManager` bypass.
+	command: 'npm pack --dry-run --json --silent --ignore-scripts --force --foreground-scripts=false',
 	stdout: '[{"files":[]}]',
 }, {
 	command: 'git config user.name',

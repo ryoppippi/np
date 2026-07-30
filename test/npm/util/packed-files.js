@@ -1,6 +1,9 @@
+import fs from 'node:fs/promises';
 import path from 'node:path';
 import test from 'ava';
+import {writePackage} from 'write-package';
 import {getFilesToBePacked} from '../../../source/npm/util.js';
+import {createIntegrationTest} from '../../_helpers/integration-test.js';
 import {runIfExists} from '../../_helpers/util.js';
 
 const getFixture = name => path.resolve('test', 'fixtures', 'files', name);
@@ -77,4 +80,47 @@ test('handles prepare script output (e.g., Husky)', verifyPackedFiles, 'prepare-
 
 test('ignores failing prepack script', verifyPackedFiles, 'failing-prepack-script', [
 	'index.js',
+]);
+
+const verifyDevEnginesPackageManager = test.macro(async (t, packageManager) => {
+	await createIntegrationTest(t, async ({temporaryDirectory}) => {
+		await writePackage(temporaryDirectory, {
+			name: 'fixture',
+			version: '1.0.0',
+			files: ['index.js'],
+			devEngines: {
+				packageManager,
+			},
+		});
+		await fs.writeFile(path.join(temporaryDirectory, 'index.js'), '');
+
+		// `npm pack` must not block inspection based on the package's development manager.
+		const files = await getFilesToBePacked(temporaryDirectory);
+		t.deepEqual(files.toSorted((left, right) => left.localeCompare(right)), ['index.js', 'package.json']);
+	});
+});
+
+test('works when the package requires a different package manager', verifyDevEnginesPackageManager, {
+	name: 'pnpm',
+	version: '11.15.1',
+	onFail: 'download',
+});
+
+test('works when the package requires a different npm version', verifyDevEnginesPackageManager, {
+	name: 'npm',
+	version: '<0.0.0',
+	onFail: 'error',
+});
+
+test('works when the package lists multiple other package managers', verifyDevEnginesPackageManager, [
+	{
+		name: 'pnpm',
+		version: '11.15.1',
+		onFail: 'error',
+	},
+	{
+		name: 'yarn',
+		version: '4.0.0',
+		onFail: 'error',
+	},
 ]);
