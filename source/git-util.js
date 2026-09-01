@@ -1,6 +1,5 @@
 import path from 'node:path';
 import {execa} from 'execa';
-import escapeStringRegexp from 'escape-string-regexp';
 import ignoreWalker from 'ignore-walk';
 import semver from 'semver';
 import * as util from './util.js';
@@ -104,10 +103,12 @@ export const latestTagOrFirstCommit = async () => {
 };
 
 export const hasUpstream = async () => {
-	const escapedCurrentBranch = escapeStringRegexp(await getCurrentBranch());
-	const {stdout} = await execa('git', ['status', '--short', '--branch', '--porcelain']);
-
-	return new RegExp(String.raw`^## ${escapedCurrentBranch}\.\.\..+\/${escapedCurrentBranch}`, 'v').test(stdout);
+	try {
+		await execa('git', ['rev-parse', '@{u}']);
+		return true;
+	} catch {
+		return false;
+	}
 };
 
 export const getCurrentBranch = async () => {
@@ -153,16 +154,6 @@ export const verifyWorkingTreeIsClean = async () => {
 	}
 };
 
-const hasRemote = async () => {
-	try {
-		await execa('git', ['rev-parse', '@{u}']);
-	} catch { // Has no remote if command fails
-		return false;
-	}
-
-	return true;
-};
-
 const hasUnfetchedChangesFromRemote = async () => {
 	// Inherit stdin to allow SSH password prompts for password-protected keys
 	const {stdout: possibleNewChanges} = await execa('git', ['fetch', '--dry-run'], {stdin: 'inherit', timeout: gitNetworkTimeout});
@@ -179,7 +170,7 @@ const isRemoteHistoryClean = async () => {
 };
 
 export const verifyRemoteHistoryIsClean = async () => {
-	if (!(await hasRemote())) {
+	if (!(await hasUpstream())) {
 		return;
 	}
 

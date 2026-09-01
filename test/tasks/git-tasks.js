@@ -187,8 +187,8 @@ test.serial('preflight should validate remote before checking remote history', c
 		stdout: '',
 	},
 	{
-		command: 'git status --short --branch --porcelain',
-		stdout: '## master...origin/master',
+		command: 'git rev-parse @{u}',
+		exitCode: 0,
 	},
 	{
 		command: 'git config branch.master.remote',
@@ -248,10 +248,6 @@ test.serial('preflight should validate the tracked remote instead of origin', cr
 	{
 		command: 'git status --porcelain',
 		stdout: '',
-	},
-	{
-		command: 'git status --short --branch --porcelain',
-		stdout: '## main...upstream/main',
 	},
 	{
 		command: 'git config branch.main.remote',
