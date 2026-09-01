@@ -101,7 +101,7 @@ export default async function np(input = 'patch', {packageManager, ...rawOptions
 		const versionInLatestTag = latestTag.slice(tagVersionPrefix.length);
 
 		async function getPackageVersion() {
-			const currentPackage = await util.readPackage(rootDirectory);
+			const {package_: currentPackage} = await util.readPackage(rootDirectory);
 			return currentPackage.version;
 		}
 

@@ -190,7 +190,7 @@ test('rollback is called when publish fails', async t => {
 		},
 		'../source/util.js': {
 			...util,
-			readPackage: sinon.stub().resolves({version: '1.0.0'}),
+			readPackage: sinon.stub().resolves({package_: {version: '1.0.0'}}),
 			getTagVersionPrefix: sinon.stub().resolves('v'),
 		},
 	});
