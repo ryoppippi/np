@@ -18,7 +18,9 @@ export const root = async () => {
 
 export const newFilesSinceLastRelease = async rootDirectory => {
 	try {
-		const {stdout} = await execa('git', ['diff', '--name-only', '--diff-filter=A', await latestTag(), 'HEAD']);
+		// `--relative` makes paths relative to the package directory (and excludes files outside it), so they match the paths from `npm pack` when the package lives in a subdirectory (e.g. `--contents`).
+		const relativeRootDirectory = path.relative(await root(), rootDirectory);
+		const {stdout} = await execa('git', ['diff', '--name-only', '--diff-filter=A', `--relative=${relativeRootDirectory}`, await latestTag(), 'HEAD']);
 		if (stdout.trim().length === 0) {
 			return [];
 		}

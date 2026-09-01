@@ -1,3 +1,4 @@
+import path from 'node:path';
 import test from 'ava';
 import {_createFixture} from '../_helpers/integration-test.js';
 
@@ -35,5 +36,20 @@ test('uses ignoreWalker', createFixture, async ({t}) => {
 	t.deepEqual(
 		newFiles.toSorted((a, b) => a.localeCompare(b)),
 		['index.js', 'package.json', '.gitignore'].toSorted((a, b) => a.localeCompare(b)),
+	);
+});
+
+test('returns files relative to a package in a subdirectory', createFixture, async ({t, $$}) => {
+	await $$`git tag v0.0.0`;
+	await t.context.createFile('outside.js');
+	await t.context.createFile('dist/index.js');
+	await t.context.createFile('dist/package.json');
+	await $$`git add .`;
+	await $$`git commit -m "added"`;
+}, async ({t, testedModule: {newFilesSinceLastRelease}, temporaryDirectory}) => {
+	const newFiles = await newFilesSinceLastRelease(path.join(temporaryDirectory, 'dist'));
+	t.deepEqual(
+		newFiles.toSorted((a, b) => a.localeCompare(b)),
+		['index.js', 'package.json'],
 	);
 });
