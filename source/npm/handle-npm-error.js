@@ -30,7 +30,7 @@ export default function handleNpmError(error, task, message, executor) {
 	// https://stackoverflow.com/a/44862841/10292952
 	if (
 		error.code === 402
-		|| error.stderr.includes('npm ERR! 402 Payment Required') // Npm/pnpm
+		|| error.stderr.includes('402 Payment Required') // Npm/pnpm (prefixed with `npm ERR!` before npm 10 and `npm error` since)
 		|| error.stdout.includes('Response Code: 402 (Payment Required)') // Yarn Berry
 	) {
 		throw new Error('You cannot publish a scoped package privately without a paid plan. Did you mean to publish publicly?');

@@ -18,3 +18,10 @@ test('error code 402 - privately publish scoped package', t => {
 		{message: 'You cannot publish a scoped package privately without a paid plan. Did you mean to publish publicly?'},
 	);
 });
+
+test('error code 402 - npm 10+ log prefix', t => {
+	t.throws(
+		() => handleNpmError(makeError({stderr: 'npm error code E402\nnpm error 402 Payment Required - PUT https://registry.npmjs.org/@scope%2fname - You must sign up for private packages'})),
+		{message: 'You cannot publish a scoped package privately without a paid plan. Did you mean to publish publicly?'},
+	);
+});
