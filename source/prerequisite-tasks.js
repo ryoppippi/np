@@ -10,7 +10,11 @@ import {getOidcProvider} from './npm/oidc.js';
 
 export default function prerequisiteTasks(input, package_, options, {packageManager, rootDirectory}) {
 	const isExternalRegistry = npm.isExternalRegistry(package_);
-	let newVersion;
+
+	// The tasks run concurrently, so each task that needs the new version computes it itself instead of waiting for the `Validate version` task.
+	const getNewVersion = () => input instanceof Version
+		? input
+		: new Version(package_.version).setFrom(input);
 
 	const tasks = [
 		{
@@ -59,21 +63,15 @@ export default function prerequisiteTasks(input, package_, options, {packageMana
 			task: async () => git.verifyUserConfigIsSet(),
 		},
 		{
-			title: 'Check git remote',
-			task: async () => git.verifyRemoteIsValid(options.remote),
-		},
-		{
 			title: 'Validate version',
 			task() {
-				newVersion = input instanceof Version
-					? input
-					: new Version(package_.version).setFrom(input);
+				getNewVersion();
 			},
 		},
 		{
 			title: 'Check for pre-release version',
 			task() {
-				if (!package_.private && newVersion.isPrerelease() && !options.tag) {
+				if (!package_.private && getNewVersion().isPrerelease() && !options.tag) {
 					throw new Error('You must specify a dist-tag using --tag when publishing a pre-release version. This prevents accidentally tagging unstable versions as "latest". https://docs.npmjs.com/cli/dist-tag');
 				}
 			},
@@ -82,6 +80,7 @@ export default function prerequisiteTasks(input, package_, options, {packageMana
 			title: 'Check for Node.js engine support drop',
 			enabled: () => !options.yolo && !package_.private,
 			async task() {
+				const newVersion = getNewVersion();
 				const publishedEngines = await npm.getPublishedPackageEngines(package_);
 
 				// Skip if this is the first publish or if published package has no engines.node
@@ -131,17 +130,21 @@ export default function prerequisiteTasks(input, package_, options, {packageMana
 			},
 		},
 		{
-			title: 'Check git tag existence',
+			title: 'Check git remote and tag existence',
 			async task() {
+				// Both commands inherit stdin for SSH passphrase prompts, so they must not run at the same time as each other. Keeping them in one task keeps them sequential while the other tasks run concurrently.
+				await git.verifyRemoteIsValid(options.remote);
+
 				// Fetch is needed so `tagExistsOnRemote` can check local refs. Don't replace with `ls-remote`.
 				await git.fetch();
 
 				const tagPrefix = await util.getTagVersionPrefix(packageManager);
 
-				await git.verifyTagDoesNotExistOnRemote(`${tagPrefix}${newVersion}`);
+				await git.verifyTagDoesNotExistOnRemote(`${tagPrefix}${getNewVersion()}`);
 			},
 		},
 	];
 
-	return new Listr(tasks);
+	// Most of these checks are network round trips, so running them concurrently cuts the total time to the slowest one.
+	return new Listr(tasks, {concurrent: true});
 }

@@ -127,6 +127,18 @@ updateNotifier({pkg: cli.pkg}).notify();
 
 /** @typedef {Awaited<ReturnType<typeof getOptions>>['options']} Options */
 
+// These lookups are memoized, each spawns a process, and the prompts and the auth check need them later. Starting them now overlaps that work with the Git checks in `getOptions`, which wait on the network. Failures are ignored here because the real calls report them.
+const warmUpPublishLookups = async (package_, packageManager, rootDirectory) => {
+	try {
+		await Promise.all([
+			npm.getFilesToBePacked(rootDirectory),
+			// The auth check is skipped with OIDC, so don't warm it up either.
+			getOidcProvider() ? undefined : npm.username({externalRegistry: package_.publishConfig?.registry}),
+			util.getPreReleasePrefix(packageManager),
+		]);
+	} catch {}
+};
+
 async function getOptions() {
 	const initialConfig = await config(process.cwd());
 	const contents = cli.flags.contents ?? initialConfig?.contents;
@@ -174,12 +186,26 @@ async function getOptions() {
 
 	const runPublish = !flags.releaseDraftOnly && flags.publish && !package_.private;
 
-	const availability = runPublish
-		? await npm.isPackageNameAvailable(package_)
-		: {
+	// Start the registry lookup now so it overlaps with the Git checks below, which also wait on the network.
+	const availabilityPromise = runPublish
+		? npm.isPackageNameAvailable(package_)
+		: Promise.resolve({
 			isAvailable: false,
 			isUnknown: false,
-		};
+		});
+
+	if (runPublish) {
+		warmUpPublishLookups(package_, packageManager, rootDirectory);
+	}
+
+	const branch = flags.branch ?? await git.defaultBranch();
+	if (!flags.releaseDraftOnly) {
+		// Keep obvious Git failures ahead of the wizard, but do not replace the later Git task.
+		// The publish flow still needs a final check in case the repo changes while the user is prompting or logging in.
+		await verifyGitTasks({anyBranch: flags.anyBranch, branch, remote: flags.remote});
+	}
+
+	const availability = await availabilityPromise;
 
 	if (flags.stage) {
 		if (!['npm', 'pnpm'].includes(packageManager.id)) {
@@ -202,13 +228,6 @@ async function getOptions() {
 
 	// Use current (latest) version when 'releaseDraftOnly', otherwise try to use the first argument.
 	const version = flags.releaseDraftOnly ? package_.version : cli.input.at(0);
-
-	const branch = flags.branch ?? await git.defaultBranch();
-	if (!flags.releaseDraftOnly) {
-		// Keep obvious Git failures ahead of the wizard, but do not replace the later Git task.
-		// The publish flow still needs a final check in case the repo changes while the user is prompting or logging in.
-		await verifyGitTasks({anyBranch: flags.anyBranch, branch, remote: flags.remote});
-	}
 
 	const options = await ui({
 		...flags,

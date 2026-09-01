@@ -33,7 +33,7 @@ test.serial('public-package published on npm registry: should fail when npm regi
 	stderr: 'failed',
 }], async ({t, testedModule: prerequisiteTasks}) => {
 	await t.throwsAsync(
-		run(prerequisiteTasks('1.0.0', {name: 'test'}, {}, {packageManager: npmConfig})),
+		run(prerequisiteTasks('2.0.0', {name: 'test', version: '1.0.0'}, {}, {packageManager: npmConfig})),
 		{message: 'Connection to npm registry failed'},
 	);
 
@@ -254,7 +254,7 @@ test.serial('should fail when git remote does not exist', createFixture, [{
 		{message: 'not found'},
 	);
 
-	assertTaskFailed(t, 'Check git remote');
+	assertTaskFailed(t, 'Check git remote and tag existence');
 });
 
 test.serial('should fail when version is invalid', createFixture, [], async ({t, testedModule: prerequisiteTasks}) => {
@@ -325,7 +325,7 @@ test.serial('should fail when git tag already exists', createFixture, [{
 		{message: 'Git tag `v2.0.0` already exists.'},
 	);
 
-	assertTaskFailed(t, 'Check git tag existence');
+	assertTaskFailed(t, 'Check git remote and tag existence');
 });
 
 test.serial('checks should pass', createFixture, [{

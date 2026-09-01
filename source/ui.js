@@ -87,8 +87,10 @@ const printCommitLog = async (repoUrl, registryUrl, fromLatestTag, releaseBranch
 };
 
 const checkNewFilesAndDependencies = async (package_, rootDirectory) => {
-	const newFiles = await util.getNewFiles(rootDirectory);
-	const newDependencies = await util.getNewDependencies(package_, rootDirectory);
+	const [newFiles, newDependencies] = await Promise.all([
+		util.getNewFiles(rootDirectory),
+		util.getNewDependencies(package_, rootDirectory),
+	]);
 
 	const isNoNewFirstTimeFiles = !newFiles.firstTime || newFiles.firstTime.length === 0;
 	const isNoNewDependencies = !newDependencies || newDependencies.length === 0;

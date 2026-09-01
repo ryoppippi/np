@@ -94,6 +94,7 @@ const loadCliImplementation = async overrides => esmock('../source/cli-implement
 			},
 			rootDirectory: process.cwd(),
 		}),
+		getPreReleasePrefix: sinon.stub().resolves(''),
 	},
 	'../source/git-util.js': {
 		defaultBranch: sinon.stub().resolves('main'),
@@ -110,6 +111,7 @@ const loadCliImplementation = async overrides => esmock('../source/cli-implement
 	'../source/npm/util.js': {
 		isExternalRegistry: sinon.stub().returns(false),
 		isPackageNameAvailable: sinon.stub(),
+		getFilesToBePacked: sinon.stub().resolves([]),
 		username: sinon.stub(),
 		login: sinon.stub(),
 	},
@@ -187,6 +189,7 @@ const rejectsStagedPublishing = test.macro(async (t, {id, version, minimumVersio
 			'../source/npm/util.js': {
 				isExternalRegistry: sinon.stub().returns(false),
 				isPackageNameAvailable: sinon.stub().resolves({isAvailable: false, isUnknown: false}),
+				getFilesToBePacked: sinon.stub().resolves([]),
 				username: sinon.stub(),
 				login: sinon.stub(),
 			},
@@ -246,9 +249,11 @@ test.serial('cli accepts pnpm staged publishing at the minimum version', accepts
 const notLoggedInError = () => Object.assign(new Error('You must be logged in. Use `npm login` and try again.'), {isNotLoggedIn: true});
 
 test.serial('cli auto-runs `npm login` and re-verifies after a successful login', async t => {
+	// The first two calls are the early warm-up and the auth check. Neither result is cached because `username` is stubbed, and the real memoized version does not cache failures either.
 	const usernameStub = sinon.stub();
 	usernameStub.onFirstCall().rejects(notLoggedInError());
-	usernameStub.onSecondCall().resolves('sindresorhus');
+	usernameStub.onSecondCall().rejects(notLoggedInError());
+	usernameStub.onThirdCall().resolves('sindresorhus');
 	const loginStub = sinon.stub().resolves();
 	const npStub = sinon.stub().resolves({name: 'test-package', version: '1.0.1'});
 	const gracefulExitStub = sinon.stub();
@@ -260,6 +265,7 @@ test.serial('cli auto-runs `npm login` and re-verifies after a successful login'
 		'../source/npm/util.js': {
 			isExternalRegistry: sinon.stub().returns(false),
 			isPackageNameAvailable: sinon.stub().resolves({isAvailable: false, isUnknown: false}),
+			getFilesToBePacked: sinon.stub().resolves([]),
 			username: usernameStub,
 			login: loginStub,
 		},
@@ -269,7 +275,7 @@ test.serial('cli auto-runs `npm login` and re-verifies after a successful login'
 	});
 
 	t.true(loginStub.calledOnce);
-	t.true(usernameStub.calledTwice);
+	t.true(usernameStub.calledThrice);
 	t.true(npStub.calledOnce);
 
 	consoleLogStub.restore();
@@ -289,6 +295,7 @@ test.serial('cli fails with an actionable error when still not authenticated aft
 		'../source/npm/util.js': {
 			isExternalRegistry: sinon.stub().returns(false),
 			isPackageNameAvailable: sinon.stub().resolves({isAvailable: false, isUnknown: false}),
+			getFilesToBePacked: sinon.stub().resolves([]),
 			username: usernameStub,
 			login: loginStub,
 		},
@@ -298,7 +305,7 @@ test.serial('cli fails with an actionable error when still not authenticated aft
 	});
 
 	t.true(loginStub.calledOnce);
-	t.true(usernameStub.calledTwice);
+	t.true(usernameStub.calledThrice);
 	t.true(npStub.notCalled);
 	t.true(gracefulExitStub.calledOnceWithExactly(1));
 	t.true(consoleErrorStub.calledOnce);

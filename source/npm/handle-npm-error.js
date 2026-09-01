@@ -1,6 +1,10 @@
-import listrInput from 'listr-input';
 import chalk from 'chalk';
-import {throwError, catchError} from 'rxjs';
+import {
+	throwError,
+	catchError,
+	from,
+	mergeMap,
+} from 'rxjs';
 
 export default function handleNpmError(error, task, message, executor) {
 	if (typeof message === 'function') {
@@ -17,13 +21,16 @@ export default function handleNpmError(error, task, message, executor) {
 		const {title} = task;
 		task.title = `${title} ${chalk.yellow('(waiting for input…)')}`;
 
-		return listrInput('Enter OTP:', {
+		const promptForOtp = listrInput => listrInput('Enter OTP:', {
 			done(otp) {
 				task.title = title;
 				return executor(otp);
 			},
 			autoSubmit: value => value.length === 6,
 		}).pipe(catchError(otpError => handleNpmError(otpError, task, 'OTP was incorrect, try again:', executor)));
+
+		// `listr-input` is slow to load, so only load it when an OTP is actually needed.
+		return from(import('listr-input')).pipe(mergeMap(({default: listrInput}) => promptForOtp(listrInput)));
 	}
 
 	// Attempting to privately publish a scoped package without the correct npm plan

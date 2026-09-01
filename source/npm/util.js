@@ -2,6 +2,7 @@ import path from 'node:path';
 import {pathExists} from 'path-exists';
 import {execa} from 'execa';
 import npmName from 'npm-name';
+import pMemoize from 'p-memoize';
 import chalk from 'chalk-template';
 import * as util from '../util.js';
 
@@ -37,7 +38,8 @@ export const checkConnection = async () => {
 	}
 };
 
-export const username = async ({externalRegistry}) => {
+// Memoized because the early auth check in the CLI and the prerequisite task both need it, and `npm whoami` is a network round trip. Failures are not cached, so re-verifying after `npm login` still runs the command.
+export const username = pMemoize(async ({externalRegistry}) => {
 	const arguments_ = ['whoami'];
 
 	if (externalRegistry) {
@@ -57,7 +59,7 @@ export const username = async ({externalRegistry}) => {
 		authError.isNotLoggedIn = isNotLoggedIn;
 		throw authError;
 	}
-};
+}, {cacheKey: ([{externalRegistry}]) => externalRegistry});
 
 class ExitPromptError extends Error {
 	name = 'ExitPromptError';
@@ -226,7 +228,8 @@ export const isIgnoreScriptsEnabled = async (rootDirectory, packageManagerCli = 
 	}
 };
 
-export const getFilesToBePacked = async rootDirectory => {
+// Memoized because it is needed both when listing new files before the prompts and when verifying entry points, and `npm pack` is slow.
+export const getFilesToBePacked = pMemoize(async rootDirectory => {
 	const {stdout} = await execa('npm', [
 		'pack',
 		'--dry-run',
@@ -253,7 +256,7 @@ export const getFilesToBePacked = async rootDirectory => {
 	} catch (error) {
 		throw new Error('Failed to parse output of npm pack', {cause: error});
 	}
-};
+});
 
 const hasPackLifecycleScript = package_ => {
 	const {scripts} = package_;
