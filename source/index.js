@@ -1,3 +1,6 @@
+// Important: This must be the first import. It defines `Symbol.observable` before any copy of rxjs loads, so np's rxjs and the rxjs 6 inside the lazily loaded `listr-input` agree on the symbol. Without it, `listr` polyfills the symbol at run time, after np's rxjs has loaded, and the OTP prompt then fails with “You provided an invalid object where a stream was expected”.
+// eslint-disable-next-line import-x/no-unassigned-import, import-x/order
+import 'symbol-observable';
 import path from 'node:path';
 import process from 'node:process';
 import {execa} from 'execa';
